@@ -4,6 +4,8 @@ version = "0.1.0"
 description = "Code context brain for AI coding tools, served over MCP"
 requires-python = ">=3.13"
 dependencies = [
+    "fastembed>=0.9.1",
+    "numpy>=2.5.4",
     # 0.26.0 segfaults (access violation in Node.named_children) on Windows; recheck before lifting
     "tree-sitter>=0.25,<0.26",
     "tree-sitter-language-pack>=1.25.0",

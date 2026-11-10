@@ -42,6 +42,11 @@ MIGRATIONS = [
     CREATE INDEX symbols_file ON symbols(file_id);
     CREATE INDEX symbols_name ON symbols(name);
     """,
+    # 2: embeddings (existing rows get NULL until re-ingested)
+    """
+    ALTER TABLE symbols ADD COLUMN search_text TEXT;
+    ALTER TABLE symbols ADD COLUMN embedding BLOB;  -- 384 x float32, unit length
+    """,
 ]
 
 

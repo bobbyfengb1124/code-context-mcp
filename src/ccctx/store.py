@@ -24,13 +24,41 @@ def insert_file(conn: sqlite3.Connection, repo_id: int, path: str, language: str
 
 
 def insert_symbols(conn: sqlite3.Connection, rows: list[tuple]) -> None:
-    """rows: (repo_id, file_id, path, language, name, kind, start_line, end_line, commit_sha, code)"""
+    """rows: (repo_id, file_id, path, language, name, kind, start_line, end_line, commit_sha, code,
+              search_text, embedding)"""
     conn.executemany(
         """INSERT INTO symbols (repo_id, file_id, path, language, name, kind,
-                                start_line, end_line, commit_sha, code)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                                start_line, end_line, commit_sha, code, search_text, embedding)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         rows,
     )
+
+
+def _repo_filter(repos: list[str] | None) -> tuple[str, list]:
+    if not repos:
+        return "", []
+    return f" AND r.name IN ({','.join('?' * len(repos))})", list(repos)
+
+
+def embeddings(conn: sqlite3.Connection, repos: list[str] | None) -> tuple[list[int], list[bytes]]:
+    where, args = _repo_filter(repos)
+    rows = conn.execute(
+        "SELECT s.id, s.embedding FROM symbols s JOIN repos r ON r.id = s.repo_id"
+        f" WHERE s.embedding IS NOT NULL{where}",
+        args,
+    ).fetchall()
+    return [r[0] for r in rows], [r[1] for r in rows]
+
+
+def symbols_by_id(conn: sqlite3.Connection, ids: list[int]) -> dict[int, sqlite3.Row]:
+    rows = conn.execute(
+        f"""SELECT s.id, r.name AS repo, s.path, s.name, s.kind, s.language,
+                   s.start_line, s.end_line, s.code
+            FROM symbols s JOIN repos r ON r.id = s.repo_id
+            WHERE s.id IN ({','.join('?' * len(ids))})""",
+        ids,
+    ).fetchall() if ids else []
+    return {r["id"]: r for r in rows}
 
 
 def set_indexed(conn: sqlite3.Connection, repo_id: int, sha: str) -> None:

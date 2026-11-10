@@ -45,6 +45,30 @@ def ingest_cmd(name: str):
     typer.echo(f"Scanned  {s.scanned:>{width},} files")
     typer.echo(f"Skipped  {sum(s.skipped.values()):>{width},} files" + (f" ({reasons})" if reasons else ""))
     typer.echo(f"Indexed  {s.symbols:>{width},} symbols from {s.files:,} files in {s.seconds:.1f}s")
+    typer.echo("         (" + ", ".join(f"{p} {t:.1f}s" for p, t in s.phases.items()) + ")")
+
+
+@app.command()
+def search(
+    query: str,
+    repo: list[str] = typer.Option(None, "--repo", help="Limit to these repositories (repeatable)."),
+    limit: int = typer.Option(10, "--limit"),
+    mode: str = typer.Option("vector", "--mode", help="vector"),
+):
+    """Search indexed code by meaning."""
+    from . import search as search_mod
+
+    if mode not in search_mod.MODES:
+        typer.echo(f"error: unknown mode '{mode}' (choose from {', '.join(search_mod.MODES)})", err=True)
+        raise typer.Exit(1)
+    hits = search_mod.search(db.connect(), query, repo or None, limit, mode)
+    if not hits:
+        typer.echo("No results above the similarity floor.")
+        return
+    print_table(
+        ["SCORE", "REPO", "PATH", "LINES", "KIND", "NAME"],
+        [[f"{h.score:.3f}", h.repo, h.path, f"{h.start_line}-{h.end_line}", h.kind, h.name] for h in hits],
+    )
 
 
 @app.command()
